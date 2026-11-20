@@ -5,7 +5,8 @@ import { setToken, api } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import {
   Users, ShieldCheck, ChevronDown, Sparkles, Activity,
-  Building2, Check, Bell
+  Building2, Check, Bell, PanelLeftClose, PanelLeftOpen,
+  Sun, Moon
 } from 'lucide-react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
@@ -18,7 +19,14 @@ const demoProfiles = [
   { label: 'System Admin', role: 'SYSTEM_ADMIN', email: 'sysadmin@acme.com', desc: 'Infrastructure & System Traces' },
 ];
 
-export function TopHeader() {
+interface TopHeaderProps {
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
+}
+
+export function TopHeader({ sidebarOpen = true, onToggleSidebar, theme = 'light', onToggleTheme }: TopHeaderProps) {
   const user = getUser();
   const { success, error } = useToast();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -74,9 +82,24 @@ export function TopHeader() {
     'bg-slate-100 text-slate-800 border-slate-300';
 
   return (
-    <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-      {/* Left: Organization context */}
-      <div className="flex items-center gap-4">
+    <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      {/* Left: Sidebar toggle + Organization context */}
+      <div className="flex items-center gap-3">
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+            title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+            aria-label="Toggle Sidebar"
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+            ) : (
+              <PanelLeftOpen className="w-5 h-5 text-indigo-600 animate-pulse" />
+            )}
+          </button>
+        )}
+
         <div className="flex items-center gap-2 text-slate-700 text-sm font-medium">
           <Building2 className="w-4 h-4 text-indigo-600" />
           <span>Acme Corporation</span>
@@ -91,8 +114,24 @@ export function TopHeader() {
         </div>
       </div>
 
-      {/* Right: Notification Bell & Role Switcher */}
+      {/* Right: Theme Toggle, Notification Bell & Role Switcher */}
       <div className="flex items-center gap-3 relative">
+        {/* Dark / Light Mode Toggle Button */}
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer flex items-center justify-center border border-transparent hover:border-slate-200"
+            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-600" />
+            )}
+          </button>
+        )}
+
         <Link
           href="/notifications"
           className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"

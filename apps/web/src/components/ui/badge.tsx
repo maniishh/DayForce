@@ -3,13 +3,13 @@ import { clsx } from 'clsx';
 type Variant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'muted' | 'indigo';
 
 const variants: Record<Variant, string> = {
-  default:  'bg-slate-100 text-slate-700',
-  success:  'bg-emerald-100 text-emerald-700',
-  warning:  'bg-amber-100 text-amber-700',
-  danger:   'bg-red-100 text-red-700',
-  info:     'bg-blue-100 text-blue-700',
-  indigo:   'bg-indigo-100 text-indigo-700',
-  muted:    'bg-slate-50 text-slate-500',
+  default:  'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+  success:  'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60',
+  warning:  'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60',
+  danger:   'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60',
+  info:     'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60',
+  indigo:   'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60',
+  muted:    'bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
 };
 
 export function Badge({ children, variant = 'default', className }: {

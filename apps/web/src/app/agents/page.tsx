@@ -37,7 +37,8 @@ export default function AgentsArchitecturePage() {
 
   useEffect(() => {
     api.exceptions({ limit: '20' }).then((res) => {
-      const list = res.exceptions || [];
+      const rawList = res.exceptions || [];
+      const list = Array.from(new Map(rawList.map((e: any) => [e.id, e])).values());
       setExceptions(list);
       if (list.length > 0) {
         setSelectedExcId(list[0].id);
@@ -217,7 +218,7 @@ export default function AgentsArchitecturePage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl animate-fade-in">
+    <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -275,8 +276,8 @@ export default function AgentsArchitecturePage() {
                       disabled={simulating}
                       className="px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-medium bg-white outline-none focus:ring-2 focus:ring-indigo-500 min-w-72"
                     >
-                      {exceptions.map((exc) => (
-                        <option key={exc.id} value={exc.id}>
+                      {exceptions.map((exc, idx) => (
+                        <option key={`${exc.id}-${idx}`} value={exc.id}>
                           {exc.employeeName} — {exc.exception_type?.replace(/_/g, ' ')} ({exc.severity})
                         </option>
                       ))}

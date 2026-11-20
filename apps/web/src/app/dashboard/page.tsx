@@ -107,7 +107,7 @@ export default function DashboardPage() {
   })();
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl animate-fade-in">
+    <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
       {/* Welcome Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -140,30 +140,31 @@ export default function DashboardPage() {
       </div>
 
       {/* AI Assistant Hero Banner with Vector Illustration */}
-      <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white border border-indigo-800/50 shadow-xl overflow-hidden relative">
+      <div className="bg-gradient-to-br from-indigo-50/90 via-violet-50/50 to-white dark:from-slate-900 dark:via-indigo-950/60 dark:to-slate-900 rounded-3xl p-6 md:p-8 text-slate-900 dark:text-white border border-indigo-100/90 dark:border-indigo-900/60 shadow-sm dark:shadow-indigo-950/40 overflow-hidden relative">
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-400/30">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="space-y-3.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200/60 dark:border-indigo-800/60">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>Grok AI Agentic Intelligence Active</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Autonomous Exception Resolution with Human Oversight
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Autonomous Exception Resolution <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">with Human Oversight</span>
             </h2>
-            <p className="text-sm text-indigo-200/80 leading-relaxed">
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               AttendWise AI correlates employee schedules, scans punch events for anomalies, cross-references company policies via dense vector RAG, and proposes compliant timecard adjustments.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
               <Link
                 href="/approvals"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-xs rounded-xl shadow-md transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all cursor-pointer"
               >
                 <span>Review Pending Approvals ({kpis.pendingApprovals ?? 0})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </Link>
               <Link
                 href="/agents"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs rounded-xl backdrop-blur-sm transition-all border border-white/10"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs transition-all cursor-pointer"
               >
                 <span>Explore 7-Stage Agent Pipeline</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -172,55 +173,55 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex-shrink-0 flex items-center justify-center">
-            <RobotAnalystIllustration className="w-44 h-44 sm:w-52 sm:h-52 drop-shadow-2xl" />
+            <RobotAnalystIllustration className="w-44 h-44 sm:w-52 sm:h-52 drop-shadow-md" />
           </div>
         </div>
 
-        {/* Ambient background glow circles */}
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -top-16 -right-16 w-64 h-64 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Ambient background soft glow circles */}
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-indigo-200/30 dark:bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-violet-200/30 dark:bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* Web Punch Clock for Employees & Self-Service */}
       <PunchClockWidget onPunchSuccess={load} />
 
       {/* Measurable Business Outcomes & Value Realization */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-900/50 rounded-2xl p-5 text-white shadow-xl shadow-indigo-950/20">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-indigo-800/40">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60">
                 PROVEN ROI & IMPACT
               </span>
-              <span className="text-xs text-slate-400">Dayforce AI Challenge Evaluation Benchmark</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Dayforce AI Challenge Evaluation Benchmark</span>
             </div>
-            <h2 className="text-lg font-bold text-white mt-1">Measurable Workforce Compliance Outcomes</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-1">Measurable Workforce Compliance Outcomes</h2>
           </div>
-          <div className="text-xs text-indigo-200/80 italic">
+          <div className="text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
             &ldquo;Ground AI in trusted context, validate output, keep people accountable.&rdquo;
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-sm">
-            <div className="text-2xl font-black text-indigo-400">82%</div>
-            <div className="text-xs font-semibold text-slate-200 mt-0.5">Resolution Time Saved</div>
-            <div className="text-[11px] text-slate-400 mt-1">Cycle time down from 4 days to &lt; 10 mins</div>
+          <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3.5 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all">
+            <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">82%</div>
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5">Resolution Time Saved</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Cycle time down from 4 days to &lt; 10 mins</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-sm">
-            <div className="text-2xl font-black text-emerald-400">99.4%</div>
-            <div className="text-xs font-semibold text-slate-200 mt-0.5">Policy Compliance Rate</div>
-            <div className="text-[11px] text-slate-400 mt-1">100% grounded citations & zero hallucinations</div>
+          <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3.5 hover:border-emerald-300 dark:hover:border-emerald-500 transition-all">
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">99.4%</div>
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5">Policy Compliance Rate</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">100% grounded citations & zero hallucinations</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-sm">
-            <div className="text-2xl font-black text-amber-400">15m → 45s</div>
-            <div className="text-xs font-semibold text-slate-200 mt-0.5">Manager Overhead</div>
-            <div className="text-[11px] text-slate-400 mt-1">1-click HITL approval with before/after diffs</div>
+          <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3.5 hover:border-amber-300 dark:hover:border-amber-500 transition-all">
+            <div className="text-2xl font-black text-amber-600 dark:text-amber-400">15m → 45s</div>
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5">Manager Overhead</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">1-click HITL approval with before/after diffs</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-sm">
-            <div className="text-2xl font-black text-sky-400">$180K+</div>
-            <div className="text-xs font-semibold text-slate-200 mt-0.5">Annual Value / 1K Staff</div>
-            <div className="text-[11px] text-slate-400 mt-1">1,400+ reclaimed manager hours annually</div>
+          <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3.5 hover:border-blue-300 dark:hover:border-blue-500 transition-all">
+            <div className="text-2xl font-black text-blue-600 dark:text-blue-400">$180K+</div>
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5">Annual Value / 1K Staff</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">1,400+ reclaimed manager hours annually</div>
           </div>
         </div>
       </div>

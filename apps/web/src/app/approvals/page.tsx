@@ -108,7 +108,7 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div className="p-6 space-y-5 max-w-5xl animate-fade-in">
+    <div className="w-full max-w-[1400px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -204,10 +204,10 @@ export default function ApprovalsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {approvals.map((apr) => {
+          {approvals.map((apr, idx) => {
             const proposedChanges = toArray(apr.proposedChanges || apr.proposed_changes);
             return (
-            <Card key={apr.id} className="animate-slide-up" hover>
+            <Card key={`${apr.id}-${idx}`} className="animate-slide-up" hover>
               <CardBody className="space-y-4">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">

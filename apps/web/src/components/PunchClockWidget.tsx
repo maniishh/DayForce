@@ -108,34 +108,30 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-white/10">
-      {/* Background glow */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden">
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         {/* Left: Clock and Live Time */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-white/10 text-indigo-300">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-slate-100 text-slate-700">
               Web Punch Clock
             </span>
             {isClockedIn ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                 Clocked In since {clockInTime}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/20 text-slate-300 border border-slate-500/30">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                 Clocked Out
               </span>
             )}
           </div>
 
-          <div className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight text-white">
+          <div className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight text-slate-900">
             {time || '--:--:--'}
           </div>
-          <p className="text-xs text-indigo-200/80 font-medium">
+          <p className="text-xs text-slate-500 font-medium">
             {date} • America/New_York (EDT)
           </p>
         </div>
@@ -143,20 +139,20 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
         {/* Right: Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {loading ? (
-            <div className="flex items-center gap-2 px-6 py-3 bg-white/10 rounded-xl">
+            <div className="flex items-center gap-2 px-6 py-3 bg-slate-50 border border-slate-200 rounded-xl">
               <Spinner size="sm" />
-              <span className="text-xs text-slate-300">Syncing punch status…</span>
+              <span className="text-xs text-slate-500">Syncing punch status…</span>
             </div>
           ) : isClockedIn ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="text-right sm:text-left text-xs text-slate-300 hidden md:block">
-                <div className="text-slate-400">Shift Status</div>
-                <div className="font-semibold text-emerald-400">Active Shift</div>
+              <div className="text-right sm:text-left text-xs text-slate-500 hidden md:block">
+                <div>Shift Status</div>
+                <div className="font-semibold text-emerald-600">Active Shift</div>
               </div>
               <button
                 onClick={() => handlePunch('OUT')}
                 disabled={punching}
-                className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-rose-900/40 active:scale-[0.98] transition-all disabled:opacity-60"
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-rose-200 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
               >
                 {punching ? <Spinner size="sm" /> : <LogOut className="w-4 h-4" />}
                 Punch Out (End Shift)
@@ -164,14 +160,14 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="text-right sm:text-left text-xs text-slate-300 hidden md:block">
-                <div className="text-slate-400">Shift Status</div>
-                <div className="font-semibold text-slate-300">Ready to start</div>
+              <div className="text-right sm:text-left text-xs text-slate-500 hidden md:block">
+                <div>Shift Status</div>
+                <div className="font-semibold text-slate-700">Ready to start</div>
               </div>
               <button
                 onClick={() => handlePunch('IN')}
                 disabled={punching}
-                className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-emerald-900/40 active:scale-[0.98] transition-all disabled:opacity-60"
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-emerald-200 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
               >
                 {punching ? <Spinner size="sm" /> : <LogIn className="w-4 h-4" />}
                 Punch In (Start Shift)

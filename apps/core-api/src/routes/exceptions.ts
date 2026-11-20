@@ -30,8 +30,19 @@ router.get('/', (req: Request, res: Response): void => {
     FROM exception_cases ec
     JOIN employees e ON ec.employee_id = e.id
     LEFT JOIN shifts s ON ec.shift_id = s.id
-    LEFT JOIN investigations inv ON ec.id = inv.exception_id
-    LEFT JOIN recommendations rec ON ec.id = rec.exception_id AND rec.status = 'PENDING'
+    LEFT JOIN (
+      SELECT exception_id, summary, confidence_score
+      FROM investigations
+      GROUP BY exception_id
+      HAVING MAX(created_at)
+    ) inv ON ec.id = inv.exception_id
+    LEFT JOIN (
+      SELECT exception_id, proposed_action, recommendation_type, risk_level
+      FROM recommendations
+      WHERE status = 'PENDING'
+      GROUP BY exception_id
+      HAVING MAX(created_at)
+    ) rec ON ec.id = rec.exception_id
     WHERE ec.tenant_id = ?
   `;
   const params: any[] = [tenantId];
@@ -53,7 +64,7 @@ router.get('/', (req: Request, res: Response): void => {
   // Count
   const countSql = sql.replace(/SELECT.*?FROM/, 'SELECT COUNT(*) as total FROM').replace(/LEFT JOIN.*?$/s, `WHERE ec.tenant_id = ?${status ? ' AND ec.status = ?' : ''}${type ? ' AND ec.exception_type = ?' : ''}${severity ? ' AND ec.severity = ?' : ''}`);
 
-  sql += ` ORDER BY 
+  sql += ` GROUP BY ec.id ORDER BY 
     CASE ec.severity WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,
     ec.detected_at DESC
     LIMIT ? OFFSET ?`;
