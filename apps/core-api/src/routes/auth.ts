@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { queryOne, queryAll, execute } from '../db/index.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
+import { setupEmployeeAndShifts } from '../domain/employeeOnboarding.js';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ const RegisterSchema = z.object({
 });
 
 // POST /api/v1/auth/register — Sign up / Sign in with role
-router.post('/register', (req: Request, res: Response): void => {
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const result = RegisterSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: 'Invalid input', details: result.error.issues });
@@ -49,27 +50,15 @@ router.post('/register', (req: Request, res: Response): void => {
     );
   }
 
-  let emp = queryOne<any>('SELECT id FROM employees WHERE user_id = ?', [userId]);
-  if (!emp && (role === 'EMPLOYEE' || role === 'MANAGER')) {
-    const empId = `emp-${Date.now().toString(36)}`;
-    const [firstName, ...lastNames] = displayName.split(' ');
-    execute(
-      `INSERT INTO employees (id, tenant_id, user_id, employee_code, first_name, last_name, email, department, job_title, timezone)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'America/New_York')`,
-      [
-        empId,
-        tenantId,
-        userId,
-        `E${Math.floor(100 + Math.random() * 900)}`,
-        firstName || 'Employee',
-        lastNames.join(' ') || 'User',
-        email,
-        department || (role === 'MANAGER' ? 'Management' : 'Operations'),
-        role === 'MANAGER' ? 'Team Manager' : 'Team Member',
-      ]
-    );
-    emp = { id: empId };
-  }
+  // Ensure full employee profile, recurring shifts, and initial AI pipeline readiness
+  const emp = await setupEmployeeAndShifts({
+    userId,
+    tenantId,
+    email,
+    displayName,
+    role,
+    department,
+  });
 
   const payload = {
     id: userId,
@@ -83,12 +72,12 @@ router.post('/register', (req: Request, res: Response): void => {
   res.status(201).json({
     token: signToken(payload),
     user: payload,
-    message: 'User registered successfully',
+    message: 'User registered and onboarded successfully with full AI exception intelligence',
   });
 });
 
 // POST /api/v1/auth/login
-router.post('/login', (req: Request, res: Response): void => {
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const result = LoginSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: 'Invalid input', details: result.error.issues });
@@ -103,7 +92,7 @@ router.post('/login', (req: Request, res: Response): void => {
   );
 
   if (!user) {
-    res.status(401).json({ error: 'Invalid credentials. User not found.' });
+    res.status(401).json({ error: 'User not found with this email. Please switch to the "Sign In / Register" tab to create your account.' });
     return;
   }
 
@@ -113,12 +102,23 @@ router.post('/login', (req: Request, res: Response): void => {
     user.password_hash === 'hashed_demo1234';
 
   if (!isValid) {
-    res.status(401).json({ error: 'Invalid credentials' });
+    res.status(401).json({ error: 'Invalid password. (Hint: Demo password is demo1234)' });
     return;
   }
 
   const effectiveRole = requestedRole || user.role;
-  const employee = queryOne<any>('SELECT id FROM employees WHERE user_id = ?', [user.id]);
+  let employee = queryOne<any>('SELECT id FROM employees WHERE user_id = ?', [user.id]);
+
+  if (!employee) {
+    const emp = await setupEmployeeAndShifts({
+      userId: user.id,
+      tenantId: user.tenant_id,
+      email: user.email,
+      displayName: user.display_name,
+      role: effectiveRole,
+    });
+    employee = { id: emp.id };
+  }
 
   const payload = {
     id: user.id,

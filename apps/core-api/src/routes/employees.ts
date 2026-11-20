@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth } from '../middleware/auth.js';
-import { queryAll, queryOne } from '../db/index.js';
+import { z } from 'zod';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { queryAll, queryOne, execute } from '../db/index.js';
+import { setupEmployeeAndShifts } from '../domain/employeeOnboarding.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -69,6 +71,58 @@ router.get('/:id', (req: Request, res: Response): void => {
   }
 
   res.json({ employee: emp });
+});
+
+const CreateEmployeeSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Valid email address is required'),
+  department: z.string().default('Operations'),
+  jobTitle: z.string().default('Operations Specialist'),
+  role: z.enum(['EMPLOYEE', 'MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN']).default('EMPLOYEE'),
+});
+
+// POST /api/v1/employees — Add new employee with auto-generated shifts & AI pipeline enablement
+router.post('/', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (req: Request, res: Response): Promise<void> => {
+  const result = CreateEmployeeSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: 'Validation failed', details: result.error.issues });
+    return;
+  }
+
+  const { firstName, lastName, email, department, jobTitle, role } = result.data;
+  const tenantId = req.user!.tenantId || 'tenant-acme-corp';
+  const displayName = `${firstName} ${lastName}`;
+
+  // Check if user with email exists
+  const existingUser = queryOne<any>('SELECT id FROM users WHERE email = ?', [email]);
+  let userId: string;
+
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    userId = `user-${Date.now().toString(36)}`;
+    execute(
+      `INSERT INTO users (id, tenant_id, email, display_name, role, is_active, password_hash)
+       VALUES (?, ?, ?, ?, ?, 1, 'hashed_demo1234')`,
+      [userId, tenantId, email, displayName, role]
+    );
+  }
+
+  const emp = await setupEmployeeAndShifts({
+    userId,
+    tenantId,
+    email,
+    displayName,
+    role,
+    department,
+    jobTitle,
+  });
+
+  res.status(201).json({
+    message: `Employee ${displayName} successfully created and onboarded with 14 days of scheduled shifts and LangGraph AI pipeline readiness.`,
+    employee: emp,
+  });
 });
 
 export default router;

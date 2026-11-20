@@ -7,6 +7,7 @@ const CONFIG = {
   earlyDepartureMins:        15,
   overtimeDailyHours:         8,
   missingClockOutWindowMins: 60, // only flag after shift end + 60 min
+  maxShiftDurationMultiplier: 1.5, // 1.5x scheduled shift duration anomaly threshold
 };
 
 interface DetectedExc {
@@ -97,13 +98,29 @@ export async function detectExceptions(opts: {
 
     // ── MISSING_CLOCK_OUT ─────────────────────────────────────────────────
     if (clockIn && !clockOut) {
+      const shiftDurationMs = Math.max(1, endUtc.getTime() - startUtc.getTime());
+      const elapsedSinceClockInMs = now.getTime() - clockIn.getTime();
+      const threshold15xMs = shiftDurationMs * CONFIG.maxShiftDurationMultiplier;
       const windowEnd = new Date(endUtc.getTime() + CONFIG.missingClockOutWindowMins * 60000);
-      if (now > windowEnd) {
+
+      // Flag if past shift processing window OR elapsed work duration exceeds 1.5x assigned shift duration
+      const isExceeded15x = elapsedSinceClockInMs >= threshold15xMs;
+      const isPastWindow = now > windowEnd;
+
+      if (isExceeded15x || isPastWindow) {
+        const elapsedHours = parseFloat((elapsedSinceClockInMs / (1000 * 60 * 60)).toFixed(2));
+        const scheduledHours = parseFloat((shiftDurationMs / (1000 * 60 * 60)).toFixed(2));
         const exc = buildExc(tenantId, shift.empId, shift, 'MISSING_CLOCK_OUT', 'HIGH', {
-          scheduledEnd:   shift.scheduled_end_utc,
-          actualClockIn:  shift.clock_in_utc,
-          clockOut:       null,
-          reason:         'No clock-out found after shift end + processing window',
+          scheduledStart: shift.scheduled_start_utc,
+          scheduledEnd: shift.scheduled_end_utc,
+          scheduledDurationHours: scheduledHours,
+          actualClockIn: shift.clock_in_utc,
+          clockOut: null,
+          elapsedHours,
+          isExceeded15x,
+          reason: isExceeded15x
+            ? `Elapsed work duration (${elapsedHours}h) exceeded 1.5x assigned shift duration (${scheduledHours}h) with no departure punch recorded.`
+            : 'No clock-out found after assigned shift end and processing window elapsed.',
         }, assignedManagerId);
         const saved = upsertException(exc);
         if (saved) detected.push(saved);

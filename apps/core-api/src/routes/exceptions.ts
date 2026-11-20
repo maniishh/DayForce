@@ -81,7 +81,7 @@ router.get('/', (req: Request, res: Response): void => {
 
 // GET /api/v1/exceptions/:id
 router.get('/:id', (req: Request, res: Response): void => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const tenantId = req.user!.tenantId;
 
   const exc = queryOne<any>(
@@ -171,7 +171,7 @@ router.get('/:id', (req: Request, res: Response): void => {
 
 // POST /api/v1/exceptions/:id/investigate  — trigger AI workflow
 router.post('/:id/investigate', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const tenantId = req.user!.tenantId;
 
   const exc = queryOne<any>('SELECT * FROM exception_cases WHERE id = ? AND tenant_id = ?', [id, tenantId]);
@@ -206,7 +206,7 @@ router.post('/:id/investigate', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN
 
 // POST /api/v1/exceptions/:id/cancel
 router.post('/:id/cancel', requireRole('HR_ADMIN', 'SYSTEM_ADMIN'), (req: Request, res: Response): void => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const tenantId = req.user!.tenantId;
 
   const exc = queryOne<any>('SELECT * FROM exception_cases WHERE id = ? AND tenant_id = ?', [id, tenantId]);

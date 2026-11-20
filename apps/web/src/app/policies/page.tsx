@@ -10,9 +10,10 @@ import { Spinner } from '@/components/ui/spinner';
 import { ComplianceShieldIllustration } from '@/components/ui/Illustrations';
 import {
   FileText, CheckCircle2, AlertCircle, BookOpen, Search, Hash, Calendar,
-  UploadCloud, Plus, Layers, Sparkles, FileCode, ArrowRight, HelpCircle
+  UploadCloud, Plus, Layers, Sparkles, FileCode, ArrowRight, HelpCircle, Shield, Lock
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getUser } from '@/lib/auth';
 
 const TEMPLATES = [
   {
@@ -87,6 +88,9 @@ export default function PoliciesPage() {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const user = getUser();
+  const canManagePolicies = user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
+
   const { success, error: showError } = useToast();
 
   async function loadPolicies(selectId?: string) {
@@ -151,6 +155,10 @@ export default function PoliciesPage() {
 
   async function handleUploadSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canManagePolicies) {
+      showError('Unauthorized', 'Only HR and System Administrators have permission to upload or update company policies.');
+      return;
+    }
     if (!title.trim() || !content.trim()) {
       showError('Validation Error', 'Please provide a title and policy content.');
       return;
@@ -190,19 +198,28 @@ export default function PoliciesPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Policy Knowledge Base</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Upload and manage organizational policies indexed by the RAG Vector Search & AI Evidence Agent
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Policy Knowledge Base</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {canManagePolicies
+              ? 'Upload and manage organizational policies indexed by the RAG Vector Search & AI Evidence Agent'
+              : 'Official company attendance policies and compliance guidelines (Read-Only reference)'}
           </p>
         </div>
 
-        <button
-          onClick={() => setUploadModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer"
-        >
-          <UploadCloud className="w-4 h-4" />
-          <span>Upload New Policy Document</span>
-        </button>
+        {canManagePolicies ? (
+          <button
+            onClick={() => setUploadModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Upload New Policy Document</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <Shield className="w-4 h-4 text-emerald-500" />
+            <span>Read-Only Compliance Reference (Published by HR)</span>
+          </div>
+        )}
       </div>
 
       {/* Info Banner: Explaining RAG & User Input */}
@@ -280,14 +297,20 @@ export default function PoliciesPage() {
                   illustration={<ComplianceShieldIllustration className="w-24 h-24" />}
                   icon={FileText}
                   title="No policies found"
-                  description="Upload a policy document to empower the RAG agents."
+                  description={
+                    canManagePolicies
+                      ? 'Upload a policy document to empower the RAG agents.'
+                      : 'No policies matching your filter. Contact HR Administration if you need guidance.'
+                  }
                   action={
-                    <button
-                      onClick={() => setUploadModalOpen(true)}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-                    >
-                      + Upload First Policy
-                    </button>
+                    canManagePolicies ? (
+                      <button
+                        onClick={() => setUploadModalOpen(true)}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                      >
+                        + Upload First Policy
+                      </button>
+                    ) : null
                   }
                   className="py-8"
                 />

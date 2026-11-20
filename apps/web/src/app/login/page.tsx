@@ -49,19 +49,7 @@ export default function LoginPage() {
       setUser(user);
       window.location.href = '/dashboard';
     } catch (err: any) {
-      console.warn('Backend login fallback:', err);
-      // Fallback session if backend is restarting
-      const fallbackUser = {
-        id: `user-${role.toLowerCase().replace(/_/g, '-')}`,
-        tenantId: 'tenant-acme-corp',
-        email,
-        displayName: displayName || email.split('@')[0],
-        role,
-      };
-      const fallbackToken = typeof window !== 'undefined' ? btoa(JSON.stringify(fallbackUser)) : 'demo-token';
-      setToken(fallbackToken);
-      setUser(fallbackUser);
-      window.location.href = '/dashboard';
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -69,7 +57,7 @@ export default function LoginPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
-    if (!displayName) {
+    if (!displayName.trim()) {
       setError('Please provide your full name.');
       return;
     }
@@ -80,7 +68,7 @@ export default function LoginPage() {
       const { token, user } = await api.register({
         email,
         password,
-        displayName,
+        displayName: displayName.trim(),
         role,
         department,
       });
@@ -88,18 +76,7 @@ export default function LoginPage() {
       setUser(user);
       window.location.href = '/dashboard';
     } catch (err: any) {
-      console.warn('Backend register fallback:', err);
-      const fallbackUser = {
-        id: `user-${role.toLowerCase().replace(/_/g, '-')}`,
-        tenantId: 'tenant-acme-corp',
-        email,
-        displayName,
-        role,
-      };
-      const fallbackToken = typeof window !== 'undefined' ? btoa(JSON.stringify(fallbackUser)) : 'demo-token';
-      setToken(fallbackToken);
-      setUser(fallbackUser);
-      window.location.href = '/dashboard';
+      setError(err.message || 'Registration failed. Please check your information and try again.');
     } finally {
       setLoading(false);
     }
@@ -254,8 +231,20 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <div className="bg-red-50 text-red-700 text-xs px-3.5 py-2.5 rounded-xl border border-red-200">
-                {error}
+              <div className="bg-red-50 text-red-700 text-xs px-3.5 py-3 rounded-xl border border-red-200 space-y-1.5 animate-fade-in">
+                <div className="font-medium">{error}</div>
+                {tab === 'login' && (error.toLowerCase().includes('not found') || error.toLowerCase().includes('invalid credentials')) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('register');
+                      setError('');
+                    }}
+                    className="inline-flex items-center gap-1 font-semibold text-indigo-700 hover:text-indigo-900 underline cursor-pointer text-[11px]"
+                  >
+                    New user? Click here to register your account →
+                  </button>
+                )}
               </div>
             )}
 

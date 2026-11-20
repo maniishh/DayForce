@@ -14,6 +14,7 @@ import {
   Clock, Zap, ArrowRight, XCircle, Ban, Quote, GitCompare, Shield
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getUser } from '@/lib/auth';
 
 function formatUtc(iso: string | null | undefined) {
   if (!iso) return '—';
@@ -54,6 +55,9 @@ export default function ExceptionDetailPage() {
   const [invLoading, setInvLoading] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const user = getUser();
+  const canInvestigate = user?.role === 'MANAGER' || user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
+  const canCancel = user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
 
   async function load() {
     try {
@@ -135,20 +139,24 @@ export default function ExceptionDetailPage() {
         <div className="flex gap-2 flex-shrink-0">
           {!isTerminal && (
             <>
-              <button
-                onClick={() => setShowCancel(true)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
-              >
-                <Ban className="w-3.5 h-3.5" /> Cancel
-              </button>
-              <button
-                onClick={triggerInvestigation}
-                disabled={invLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 disabled:opacity-60 disabled:shadow-none transition-all"
-              >
-                {invLoading ? <Spinner size="sm" /> : <Brain className="w-4 h-4" />}
-                {invLoading ? 'Triggering…' : 'Run AI Investigation'}
-              </button>
+              {canCancel && (
+                <button
+                  onClick={() => setShowCancel(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  <Ban className="w-3.5 h-3.5" /> Cancel
+                </button>
+              )}
+              {canInvestigate && (
+                <button
+                  onClick={triggerInvestigation}
+                  disabled={invLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 dark:shadow-none disabled:opacity-60 disabled:shadow-none transition-all cursor-pointer"
+                >
+                  {invLoading ? <Spinner size="sm" /> : <Brain className="w-4 h-4" />}
+                  {invLoading ? 'Triggering…' : 'Run AI Investigation'}
+                </button>
+              )}
             </>
           )}
         </div>

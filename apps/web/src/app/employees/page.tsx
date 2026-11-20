@@ -6,12 +6,16 @@ import { Card, CardBody } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/ui/stat-card';
+import { Modal } from '@/components/ui/modal';
+import { useToast } from '@/components/ui/toast';
 import {
   Users, Search, Briefcase, Mail, Building2, UserCheck,
   LayoutList, LayoutGrid, X, CheckCircle2, Shield, ArrowRight,
-  BadgeCheck, Fingerprint, Calendar, Phone, Sparkles
+  BadgeCheck, Fingerprint, Calendar, Phone, Sparkles, Lock, UserPlus
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import Link from 'next/link';
+import { getUser } from '@/lib/auth';
 
 export default function EmployeesPage() {
   const [emps, setEmps] = useState<any[]>([]);
@@ -20,8 +24,100 @@ export default function EmployeesPage() {
   const [deptFilter, setDeptFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const user = getUser();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const canAddEmployee = user?.role === 'MANAGER' || user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
+
+  // Add Employee Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('Operations');
+  const [jobTitle, setJobTitle] = useState('Operations Specialist');
+  const [newRole, setNewRole] = useState<'EMPLOYEE' | 'MANAGER'>('EMPLOYEE');
+  const [saving, setSaving] = useState(false);
+
+  // Shift Assignment Modal state
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
+  const [selectedEmpForShift, setSelectedEmpForShift] = useState<any>(null);
+  const [shiftStartDate, setShiftStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [shiftEndDate, setShiftEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [shiftStartTime, setShiftStartTime] = useState('09:00');
+  const [shiftEndTime, setShiftEndTime] = useState('17:00');
+  const [shiftBreakMins, setShiftBreakMins] = useState(30);
+  const [shiftType, setShiftType] = useState<'REGULAR' | 'OVERNIGHT' | 'ON_CALL'>('REGULAR');
+  const [assigningShift, setAssigningShift] = useState(false);
+
+  const { success, error: showError } = useToast();
+
+  function openAssignShiftModal(emp: any) {
+    setSelectedEmpForShift(emp);
+    setShiftModalOpen(true);
+  }
+
+  async function handleAssignShift(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedEmpForShift) return;
+    setAssigningShift(true);
+    try {
+      const res = await api.assignShift({
+        employeeId: selectedEmpForShift.id,
+        startDate: shiftStartDate,
+        endDate: shiftEndDate,
+        startTime: shiftStartTime,
+        endTime: shiftEndTime,
+        breakMinutes: shiftBreakMins,
+        shiftType,
+      });
+      success('Shift Timings Assigned', res.message || `Assigned ${shiftStartTime} - ${shiftEndTime} to ${selectedEmpForShift.first_name}.`);
+      setShiftModalOpen(false);
+    } catch (err: any) {
+      showError('Assignment Failed', err.message);
+    } finally {
+      setAssigningShift(false);
+    }
+  }
+
+  async function handleCreateEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      showError('Validation Error', 'Please provide first name, last name, and email.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.createEmployee({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        department,
+        jobTitle,
+        role: newRole,
+      });
+      success('Employee Added', res.message || `${firstName} ${lastName} has been added.`);
+      setModalOpen(false);
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      const r = await api.employees();
+      setEmps(r.employees || []);
+    } catch (err: any) {
+      showError('Creation Failed', err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
+    if (isEmployee) {
+      setL(false);
+      return;
+    }
     api.employees().then((r) => {
       setEmps(r.employees || []);
       setL(false);
@@ -78,6 +174,31 @@ export default function EmployeesPage() {
     return colors[hash % colors.length];
   };
 
+  if (isEmployee) {
+    return (
+      <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-5">Employee Directory</h1>
+        <Card>
+          <CardBody>
+            <EmptyState
+              icon={Lock}
+              title="Access Restricted"
+              description="The Organization Employee Directory is restricted to Department Managers and HR Administrators. Employees can review their personal punch events and shifts in Attendance & Punches."
+              action={
+                <Link
+                  href="/attendance"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                >
+                  Go to Attendance & Punches <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              }
+            />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
       {/* Page Header */}
@@ -92,34 +213,46 @@ export default function EmployeesPage() {
           </p>
         </div>
 
-        {/* View Switcher: Table vs Cards */}
-        <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 bg-white shadow-xs">
-          <button
-            onClick={() => setViewMode('table')}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer',
-              viewMode === 'table'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            )}
-            title="Table View with Explicit Row Cards"
-          >
-            <LayoutList className="w-3.5 h-3.5" />
-            <span>Separated Table</span>
-          </button>
-          <button
-            onClick={() => setViewMode('cards')}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer',
-              viewMode === 'cards'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            )}
-            title="Card Grid View"
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Cards</span>
-          </button>
+        {/* View Switcher & Add Button */}
+        <div className="flex items-center gap-3">
+          {canAddEmployee && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-200 transition-all cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Add Employee</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 bg-white shadow-xs">
+            <button
+              onClick={() => setViewMode('table')}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer',
+                viewMode === 'table'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              )}
+              title="Table View with Explicit Row Cards"
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>Separated Table</span>
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer',
+                viewMode === 'cards'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              )}
+              title="Card Grid View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cards</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -213,6 +346,7 @@ export default function EmployeesPage() {
                 <th className="px-5 pb-1 text-left">Reporting Supervisor</th>
                 <th className="px-5 pb-1 text-left">Contact Channel</th>
                 <th className="px-5 pb-1 text-left">Employment Status</th>
+                <th className="px-5 pb-1 text-right">Work Timings</th>
               </tr>
             </thead>
             <tbody>
@@ -301,8 +435,8 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Rightmost Cell with Rounded Right Boundary & Right Border */}
-                    <td className="px-5 py-4 rounded-r-2xl border-y-2 border-r-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors">
+                    {/* Status Cell */}
+                    <td className="px-5 py-4 border-y-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors">
                       <span className={clsx(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-xs',
                         sc.bg, sc.text, sc.border
@@ -310,6 +444,21 @@ export default function EmployeesPage() {
                         <span className={clsx('w-2 h-2 rounded-full', sc.dot, emp.employment_status === 'ACTIVE' && 'animate-pulse')} />
                         {emp.employment_status}
                       </span>
+                    </td>
+
+                    {/* Rightmost Cell with Shift Assignment Action */}
+                    <td className="px-5 py-4 rounded-r-2xl border-y-2 border-r-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors text-right">
+                      {canAddEmployee ? (
+                        <button
+                          onClick={() => openAssignShiftModal(emp)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Assign Timings</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">Scheduled</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -379,12 +528,281 @@ export default function EmployeesPage() {
                     </span>
                     <span className="font-mono text-[11px] text-slate-600 truncate max-w-[170px]">{emp.email}</span>
                   </div>
+
+                  {canAddEmployee && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => openAssignShiftModal(emp)}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Assign Shift Timings</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Add Employee Modal */}
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Add New Employee"
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleCreateEmployee} className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Create an employee profile. A user account with 14 days of scheduled shifts and automatic LangGraph AI anomaly monitoring will be configured automatically.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">First Name *</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. John"
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Last Name *</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Doe"
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address *</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. john.doe@acme.com"
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="Operations">Operations</option>
+                <option value="Technology">Technology</option>
+                <option value="HR">HR</option>
+                <option value="Finance">Finance</option>
+                <option value="Logistics">Logistics</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Account Role</label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as any)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="MANAGER">Manager</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title</label>
+            <input
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g. Operations Coordinator"
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs text-indigo-900 leading-relaxed">
+            <span className="font-semibold">Default Password:</span> <code>demo1234</code>. The new employee can immediately log in, use the Web Punch clock, and have their attendance analyzed by the AI pipeline.
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              {saving ? <Spinner size="sm" /> : <UserPlus className="w-4 h-4" />}
+              {saving ? 'Creating & Generating Shifts…' : 'Add Employee'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Assign Shift Timings Modal */}
+      <Modal
+        open={shiftModalOpen}
+        onClose={() => setShiftModalOpen(false)}
+        title={`Assign Shift Timings: ${selectedEmpForShift ? `${selectedEmpForShift.first_name} ${selectedEmpForShift.last_name}` : ''}`}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleAssignShift} className="space-y-4">
+          {selectedEmpForShift && (
+            <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs space-y-1">
+              <div className="font-bold text-slate-800">
+                {selectedEmpForShift.first_name} {selectedEmpForShift.last_name} ({selectedEmpForShift.employee_code})
+              </div>
+              <div className="text-slate-500">
+                Department: {selectedEmpForShift.department} • Role: {selectedEmpForShift.job_title}
+              </div>
+              <p className="text-[11px] text-indigo-700 pt-0.5">
+                Assigned shift timings determine the employee&apos;s punctuality baseline. Lateness is measured after a 10m grace period, and unclosed punches exceeding 1.5x shift duration trigger automatic AI anomaly investigation.
+              </p>
+            </div>
+          )}
+
+          {/* Quick Shift Presets */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quick Presets</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: '🌅 09:00 – 17:00', start: '09:00', end: '17:00', name: 'Standard Day' },
+                { label: '⛅ 08:00 – 16:00', start: '08:00', end: '16:00', name: 'Early Bird' },
+                { label: '☀️ 10:00 – 18:00', start: '10:00', end: '18:00', name: 'Midday Core' },
+                { label: '🌙 23:00 – 07:00', start: '23:00', end: '07:00', name: 'Overnight' },
+              ].map((preset) => (
+                <button
+                  key={preset.start}
+                  type="button"
+                  onClick={() => {
+                    setShiftStartTime(preset.start);
+                    setShiftEndTime(preset.end);
+                  }}
+                  className={clsx(
+                    'p-2 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer',
+                    shiftStartTime === preset.start && shiftEndTime === preset.end
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-semibold'
+                      : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                  )}
+                >
+                  <div>{preset.label}</div>
+                  <div className="text-[10px] text-slate-400">{preset.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift Start Time (Local) *</label>
+              <input
+                type="time"
+                value={shiftStartTime}
+                onChange={(e) => setShiftStartTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift End Time (Local) *</label>
+              <input
+                type="time"
+                value={shiftEndTime}
+                onChange={(e) => setShiftEndTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Effective From Date *</label>
+              <input
+                type="date"
+                value={shiftStartDate}
+                onChange={(e) => setShiftStartDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Apply Through Date *</label>
+              <input
+                type="date"
+                value={shiftEndDate}
+                onChange={(e) => setShiftEndDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Break Duration (Mins)</label>
+              <input
+                type="number"
+                value={shiftBreakMins}
+                onChange={(e) => setShiftBreakMins(parseInt(e.target.value) || 0)}
+                min={0}
+                max={180}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift Category</label>
+              <select
+                value={shiftType}
+                onChange={(e) => setShiftType(e.target.value as any)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="REGULAR">Regular Shift</option>
+                <option value="OVERNIGHT">Overnight Shift</option>
+                <option value="ON_CALL">On-Call Shift</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShiftModalOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={assigningShift}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              {assigningShift ? <Spinner size="sm" /> : <Calendar className="w-4 h-4" />}
+              {assigningShift ? 'Assigning Shifts…' : 'Save Shift Timings'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -4,7 +4,10 @@ import { api } from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { useToast } from '@/components/ui/toast';
 import { Spinner } from '@/components/ui/spinner';
-import { Clock, LogIn, LogOut, CheckCircle2, ShieldAlert, Sparkles } from 'lucide-react';
+import {
+  Clock, LogIn, LogOut, CheckCircle2, ShieldAlert, Sparkles,
+  Calendar, UserCheck, AlertTriangle, Timer, Info
+} from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface PunchClockWidgetProps {
@@ -21,6 +24,7 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
     lastRecord: any;
     employeeName?: string;
   } | null>(null);
+  const [shiftInfo, setShiftInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [punching, setPunching] = useState(false);
   const { success, error: showError } = useToast();
@@ -38,11 +42,15 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch current punch status
+  // Fetch current punch and assigned shift status
   async function checkStatus() {
     try {
-      const data = await api.punchStatus();
-      setStatus(data);
+      const [punchRes, shiftRes] = await Promise.allSettled([
+        api.punchStatus(),
+        api.myShift(),
+      ]);
+      if (punchRes.status === 'fulfilled') setStatus(punchRes.value);
+      if (shiftRes.status === 'fulfilled') setShiftInfo(shiftRes.value);
     } catch (err: any) {
       console.warn('Could not fetch punch status:', err);
     } finally {
@@ -108,7 +116,41 @@ export function PunchClockWidget({ onPunchSuccess, compact = false }: PunchClock
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden">
+    <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden space-y-4">
+      {/* Top Banner: Manager Assigned Shift Timings */}
+      {shiftInfo?.shift && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-indigo-50/90 via-violet-50/60 to-slate-50 border border-indigo-100/90 rounded-xl text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-xs">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                <span>Assigned Shift: {shiftInfo.shift.startTimeLocal} – {shiftInfo.shift.endTimeLocal}</span>
+                <span className="px-1.5 py-0.2 bg-indigo-100 text-indigo-700 font-semibold rounded text-[10px]">
+                  {shiftInfo.shift.shift_type || 'REGULAR'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                <span className="flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 text-emerald-600" />
+                  Supervisor: <strong>{shiftInfo.manager?.name || 'Department Manager'}</strong>
+                </span>
+                <span>•</span>
+                <span>Break: {shiftInfo.shift.break_minutes || 30}m</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+              <Info className="w-3 h-3 text-indigo-500" />
+              10m Grace • 1.5x Duration auto-flag
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         {/* Left: Clock and Live Time */}
         <div className="space-y-1">

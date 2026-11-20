@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { queryAll, queryOne, execute } from '../db/index.js';
 import { detectExceptions } from '../domain/exceptionDetector.js';
@@ -69,37 +70,46 @@ router.post('/scan', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (
   try {
     const exceptions = await detectExceptions({ tenantId, startDate, endDate, departmentId });
 
-    // Publish to Inngest and run investigation pipeline for detected exceptions
-    for (const exc of exceptions) {
-      await publishEvent('attendance/exception.detected', {
-        tenantId,
-        correlationId: `scan-${Date.now()}`,
-        exceptionId: exc.id,
-        dedupeKey: exc.dedupeKey,
-        employeeId: exc.employeeId,
-        shiftId: exc.shiftId ?? '',
-        exceptionType: exc.exceptionType,
-        severity: exc.severity,
-        facts: exc.facts,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
+    // Identify exceptions needing active approval generation
+    const pendingNeedsApproval = exceptions.filter((exc) => {
+      const existingAppr = queryOne<any>(
+        "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
+        [exc.id]
+      );
+      return !existingAppr;
+    });
 
-      // Automatically investigate each newly detected exception to populate approval inbox
-      try {
-        await runInvestigationPipeline({
-          exceptionId: exc.id,
-          tenantId,
-          correlationId: `scan-${Date.now()}`,
-          requestedByUserId: req.user!.id,
-        });
-      } catch (pipeErr) {
-        console.warn(`[scan] Investigation pipeline error for ${exc.id}:`, pipeErr);
-      }
+    // Run AI pipeline in parallel for uninvestigated exceptions
+    if (pendingNeedsApproval.length > 0) {
+      await Promise.allSettled(
+        pendingNeedsApproval.map(async (exc) => {
+          await publishEvent('attendance/exception.detected', {
+            tenantId,
+            correlationId: `scan-${Date.now()}`,
+            exceptionId: exc.id,
+            dedupeKey: exc.dedupeKey,
+            employeeId: exc.employeeId,
+            shiftId: exc.shiftId ?? '',
+            exceptionType: exc.exceptionType,
+            severity: exc.severity,
+            facts: exc.facts,
+            timestamp: new Date().toISOString(),
+          }).catch(() => {});
+
+          return runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `scan-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          });
+        })
+      );
     }
 
     res.json({
-      message: `Scan complete. ${exceptions.length} exception(s) detected/updated.`,
+      message: `Scan complete. ${exceptions.length} exception(s) detected (${pendingNeedsApproval.length} new approvals generated).`,
       exceptions: exceptions.length,
+      newApprovals: pendingNeedsApproval.length,
       details: exceptions.map((e) => ({ id: e.id, type: e.exceptionType, severity: e.severity, employeeId: e.employeeId })),
     });
   } catch (err: any) {
@@ -176,17 +186,58 @@ router.post('/punch', (req: Request, res: Response): void => {
 
   if (action === 'IN') {
     const active = queryOne<any>(
-      "SELECT * FROM attendance_records WHERE employee_id = ? AND clock_out_utc IS NULL",
+      "SELECT * FROM attendance_records WHERE employee_id = ? AND clock_out_utc IS NULL ORDER BY created_at DESC LIMIT 1",
       [employee.id]
     );
 
+    let consecutiveNotice = '';
     if (active) {
-      res.status(400).json({
-        error: 'Already clocked in',
-        record: active,
-        message: `Already clocked in at ${active.clock_in_utc}`,
-      });
-      return;
+      // User rule: Consecutive clock-in means the previous shift had NO CLOCK OUT!
+      // Do not block the employee! Flag the previous unclosed record as MISSING_CLOCK_OUT.
+      execute(
+        `UPDATE attendance_records
+         SET status = 'FLAGGED', version = version + 1, updated_at = datetime('now')
+         WHERE id = ?`,
+        [active.id]
+      );
+
+      const prevShift = active.shift_id
+        ? queryOne<any>('SELECT * FROM shifts WHERE id = ?', [active.shift_id])
+        : queryOne<any>('SELECT * FROM shifts WHERE employee_id = ? AND local_date = ? LIMIT 1', [employee.id, active.created_at.slice(0, 10)]);
+
+      if (prevShift) {
+        const prevExcId = `exc-${uuidv4().substring(0, 8)}`;
+        const dedupeKey = `${tenantId}|${employee.id}|${prevShift.id}|MISSING_CLOCK_OUT`;
+        const facts = {
+          scheduledStart: prevShift.scheduled_start_utc,
+          scheduledEnd: prevShift.scheduled_end_utc,
+          actualClockIn: active.clock_in_utc,
+          clockOut: null,
+          reason: 'Consecutive clock-in detected with no clock-out recorded for previous shift.',
+          isConsecutiveClockIn: true,
+        };
+        const factsStr = JSON.stringify(facts);
+
+        execute(
+          `INSERT OR REPLACE INTO exception_cases
+             (id, tenant_id, employee_id, shift_id, attendance_record_id, exception_type, severity, status, dedupe_key, facts, facts_json, version, detected_at, assigned_manager_id)
+           VALUES (?, ?, ?, ?, ?, 'MISSING_CLOCK_OUT', 'HIGH', 'DETECTED', ?, ?, ?, 1, datetime('now'), ?)`,
+          [
+            prevExcId, tenantId, employee.id, prevShift.id, active.id,
+            dedupeKey, factsStr, factsStr, employee.manager_employee_id || null,
+          ]
+        );
+
+        setTimeout(() => {
+          runInvestigationPipeline({
+            exceptionId: prevExcId,
+            tenantId,
+            correlationId: `consecutive-in-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          }).catch(() => {});
+        }, 100);
+      }
+      consecutiveNotice = ' (Previous unclosed shift flagged as Missing Clock-Out)';
     }
 
     let shift = queryOne<any>(
@@ -194,12 +245,32 @@ router.post('/punch', (req: Request, res: Response): void => {
       [employee.id, dateStr]
     );
 
+    if (!shift) {
+      const shiftId = `shift-${employee.id}-${dateStr}`;
+      const startUtc = `${dateStr}T14:00:00.000Z`;
+      const endUtc = `${dateStr}T22:00:00.000Z`;
+      execute(
+        `INSERT OR IGNORE INTO shifts
+           (id, tenant_id, employee_id, local_date, timezone, scheduled_start_utc, scheduled_end_utc, break_minutes, shift_type, status, version, created_at)
+         VALUES (?, ?, ?, ?, 'America/New_York', ?, ?, 30, 'REGULAR', 'SCHEDULED', 1, datetime('now'))`,
+        [shiftId, tenantId, employee.id, dateStr, startUtc, endUtc]
+      );
+      shift = { id: shiftId, scheduled_start_utc: startUtc, scheduled_end_utc: endUtc };
+    }
+
+    // Measure against assigned shift timing: 10m grace period
+    const shiftStart = new Date(shift.scheduled_start_utc);
+    const nowTime = new Date(nowIso);
+    const latenessMins = Math.round((nowTime.getTime() - shiftStart.getTime()) / 60000);
+    const isLate = latenessMins > 10;
+    const initialStatus = isLate ? 'FLAGGED' : 'RECORDED';
+
     const recordId = `att-${employee.id}-${Date.now().toString(36)}`;
     execute(
       `INSERT INTO attendance_records
          (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, null, 'WEB_CLOCK', 'RECORDED', 1, datetime('now'), datetime('now'))`,
-      [recordId, tenantId, employee.id, shift ? shift.id : null, nowIso]
+       VALUES (?, ?, ?, ?, ?, null, 'WEB_CLOCK', ?, 1, datetime('now'), datetime('now'))`,
+      [recordId, tenantId, employee.id, shift ? shift.id : null, nowIso, initialStatus]
     );
 
     const notifId = `notif-punch-${Date.now().toString(36)}`;
@@ -211,7 +282,9 @@ router.post('/punch', (req: Request, res: Response): void => {
         notifId,
         tenantId,
         req.user!.id,
-        `You successfully clocked in at ${new Date().toLocaleTimeString()} (Web Punch).`,
+        isLate
+          ? `Clock-In recorded at ${new Date().toLocaleTimeString()} (${latenessMins} mins late vs assigned shift start). Exception submitted for AI review.${consecutiveNotice}`
+          : `You successfully clocked in on time at ${new Date().toLocaleTimeString()} (Web Punch).${consecutiveNotice}`,
         recordId,
         `idem-${notifId}`,
       ]
@@ -220,10 +293,34 @@ router.post('/punch', (req: Request, res: Response): void => {
     res.json({
       success: true,
       action: 'IN',
-      message: `Clock-In successfully recorded at ${new Date().toLocaleTimeString()}`,
+      message: `Clock-In recorded at ${new Date().toLocaleTimeString()}${isLate ? ` (${latenessMins}m late vs scheduled shift)` : ''}${consecutiveNotice}`,
       recordId,
       clockInUtc: nowIso,
+      isLate,
+      latenessMins: isLate ? latenessMins : 0,
+      shift: {
+        scheduledStart: shift.scheduled_start_utc,
+        scheduledEnd: shift.scheduled_end_utc,
+      },
     });
+
+    // Trigger AI pipeline in background if anomaly detected
+    setTimeout(async () => {
+      try {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
+        const matched = detected.filter((e) => e.employeeId === employee.id);
+        for (const exc of matched) {
+          await runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `punch-in-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        // silent
+      }
+    }, 150);
   } else {
     // PUNCH OUT
     const active = queryOne<any>(
@@ -272,6 +369,24 @@ router.post('/punch', (req: Request, res: Response): void => {
       recordId,
       clockOutUtc: nowIso,
     });
+
+    // Run real-time exception detection & AI pipeline in background
+    setTimeout(async () => {
+      try {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
+        const matched = detected.filter((e) => e.employeeId === employee.id);
+        for (const exc of matched) {
+          await runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `punch-out-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        // silent
+      }
+    }, 150);
   }
 });
 

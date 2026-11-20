@@ -23,7 +23,12 @@ const nav: NavItem[] = [
   { href: '/dashboard',     label: 'Dashboard',        icon: LayoutDashboard },
   { href: '/agents',        label: 'AI Agents & Architecture', icon: Bot },
   { href: '/exceptions',    label: 'Exceptions',        icon: AlertTriangle },
-  { href: '/approvals',     label: 'Approval Inbox',    icon: CheckSquare },
+  {
+    href: '/approvals',
+    label: 'Approval Inbox',
+    icon: CheckSquare,
+    roles: ['MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'],
+  },
   { href: '/attendance',    label: 'Attendance & Punches', icon: Clock },
   { href: '/policies',      label: 'Policy Knowledge',   icon: FileText },
   {

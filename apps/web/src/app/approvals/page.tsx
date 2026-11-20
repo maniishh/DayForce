@@ -47,6 +47,10 @@ export default function ApprovalsPage() {
   const isEmployee = user?.role === 'EMPLOYEE';
 
   async function load() {
+    if (isEmployee) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const r = await api.approvals(statusTab === 'ALL' ? undefined : statusTab);
@@ -65,10 +69,14 @@ export default function ApprovalsPage() {
       const start = new Date(today); start.setDate(today.getDate() - 14);
       const fmt = (d: Date) => d.toISOString().slice(0, 10);
       const res = await api.scan(fmt(start), fmt(today));
-      success('Scan Complete', `Detected ${res.exceptions} exceptions and created active approvals.`);
+      success(
+        'AI Approvals Synchronized',
+        res.message || `Detected ${res.exceptions} exceptions and synchronized approval items.`
+      );
+      setStatusTab('PENDING');
       await load();
     } catch (err: any) {
-      showError('Scan Failed', err.message);
+      showError('Generation Failed', err.message || 'Unable to complete AI scan');
     } finally {
       setGenerating(false);
     }
@@ -100,6 +108,31 @@ export default function ApprovalsPage() {
   }
 
   useEffect(() => { load(); }, [statusTab]);
+
+  if (isEmployee) {
+    return (
+      <div className="w-full max-w-[1400px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-5">Approval Inbox</h1>
+        <Card>
+          <CardBody>
+            <EmptyState
+              icon={Lock}
+              title="Access Restricted"
+              description="Approval authority is restricted to Department Managers and HR Administrators. Employees can review their attendance records and monitor the status of their exception investigations in the Exceptions Center."
+              action={
+                <Link
+                  href="/exceptions"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all"
+                >
+                  Go to My Exceptions <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              }
+            />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   const decisionMeta: Record<string, { color: string; activeColor: string; icon: React.ElementType }> = {
     APPROVE:           { color: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50', activeColor: 'bg-emerald-600 text-white border-emerald-600', icon: CheckCircle2 },

@@ -108,7 +108,7 @@ export async function runInvestigationPipeline(opts: {
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     const res = await fetch(`${AI_SERVICE_URL}/internal/v1/investigate`, {
       method: 'POST',

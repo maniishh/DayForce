@@ -155,13 +155,23 @@ export default function DashboardPage() {
               AttendWise AI correlates employee schedules, scans punch events for anomalies, cross-references company policies via dense vector RAG, and proposes compliant timecard adjustments.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
-              <Link
-                href="/approvals"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all cursor-pointer"
-              >
-                <span>Review Pending Approvals ({kpis.pendingApprovals ?? 0})</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+              {user?.role === 'EMPLOYEE' ? (
+                <Link
+                  href="/exceptions"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all cursor-pointer"
+                >
+                  <span>View My Exceptions ({kpis.openExceptions ?? 0})</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              ) : (
+                <Link
+                  href="/approvals"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all cursor-pointer"
+                >
+                  <span>Review Pending Approvals ({kpis.pendingApprovals ?? 0})</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
               <Link
                 href="/agents"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs transition-all cursor-pointer"

@@ -80,7 +80,7 @@ const DecisionSchema = z.object({
 });
 
 // POST /api/v1/approvals/:id/decision
-router.post('/:id/decision', requireRole('MANAGER', 'HR_ADMIN'), async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/decision', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (req: Request, res: Response): Promise<void> => {
   const result = DecisionSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: 'Invalid input', details: result.error.issues });

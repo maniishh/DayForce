@@ -12,6 +12,7 @@ import auditRoutes        from './routes/audit.js';
 import notificationRoutes from './routes/notifications.js';
 import workflowRoutes     from './routes/workflow.js';
 import policyRoutes       from './routes/policies.js';
+import shiftRoutes        from './routes/shifts.js';
 
 export function createApp(): Express {
   const app = express();
@@ -40,6 +41,7 @@ export function createApp(): Express {
   app.use('/api/v1/audit',         auditRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/policies',     policyRoutes);
+  app.use('/api/v1/shifts',       shiftRoutes);
   app.use('/', workflowRoutes);
 
   // 404

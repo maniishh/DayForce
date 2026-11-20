@@ -40,8 +40,8 @@ const PolicyUploadSchema = z.object({
   location: z.string().default('ALL'),
 });
 
-// POST /api/v1/policies — upload, chunk, and index a new policy document
-router.post('/', requireRole('HR_ADMIN', 'SYSTEM_ADMIN', 'MANAGER'), (req: Request, res: Response): void => {
+// POST /api/v1/policies — upload, chunk, and index a new policy document (Admin only; Employees & Managers have read-only access)
+router.post('/', requireRole('HR_ADMIN', 'SYSTEM_ADMIN'), (req: Request, res: Response): void => {
   const parsed = PolicyUploadSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
